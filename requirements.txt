@@ -1,0 +1,60 @@
+# ============================================================
+# CureBay AI Health Assistant — Python Dependencies
+# ============================================================
+# Install: pip install -r requirements.txt
+#
+# Architecture: Fully offline (no Ollama)
+#   LLM:        MedGemma GGUF via llama-cpp-python
+#   Embeddings: all-MiniLM-L6-v2 via sentence-transformers
+#   STT:        AI4Bharat IndicConformer via NeMo (offline)
+#               + Sarvam AI API (online, optional)
+#   Vision:     EfficientNetV2-Small via torchvision
+# ============================================================
+
+# ── Web Framework ──────────────────────────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.6          # file uploads (voice/image)
+
+# ── Database ───────────────────────────────────────────────────
+sqlalchemy>=2.0.0
+
+# ── Configuration ──────────────────────────────────────────────
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# ── Authentication ─────────────────────────────────────────────
+python-jose[cryptography]>=3.3.0  # JWT tokens
+passlib[bcrypt]>=1.7.4            # password hashing
+
+# ── LLM (MedGemma GGUF) ───────────────────────────────────────
+llama-cpp-python>=0.3.0           # direct GGUF model loading, no Ollama needed
+
+# ── Text Embeddings (MiniLM) ──────────────────────────────────
+sentence-transformers>=3.0.0      # all-MiniLM-L6-v2 (~80MB, 384-dim)
+
+# ── Image Classification (EfficientNetV2) ─────────────────────
+torch>=2.0.0                      # PyTorch runtime
+torchvision>=0.15.0               # Pre-trained EfficientNetV2 models
+Pillow>=10.0.0                    # Image loading and transforms
+
+# ── Voice — AI4Bharat (offline, Indian languages) ─────────────
+nemo_toolkit[asr]>=1.22.0         # NVIDIA NeMo for IndicConformer
+# Model auto-downloads from HuggingFace on first use (~600MB)
+
+# ── Voice — Sarvam AI (online, optional) ──────────────────────
+requests>=2.31.0                  # HTTP client for Sarvam API
+
+# ── rPPG Vital Signs ──────────────────────────────────────────
+opencv-python-headless>=4.8.0     # Face detection + video processing
+scipy>=1.11.0                     # Signal processing (bandpass filters, FFT)
+numpy>=1.24.0                     # Numerical processing
+
+# ── Vector Database ────────────────────────────────────────────
+chromadb>=0.5.0                   # local vector store
+
+# ── Model Downloads ────────────────────────────────────────────
+huggingface-hub>=0.20.0           # MedGemma GGUF download in setup.py
+
+# ── Logging ────────────────────────────────────────────────────
+loguru>=0.7.0

@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local environment files
+.env
+.env.*
+
+# Logs
+logs/
+*.log
+
+# Runtime uploads and generated media
+uploads/
+
+# Local databases and vector stores
+*.db
+*.sqlite
+*.sqlite3
+chroma_data/
+
+# Local model artifacts (downloaded via setup.py)
+models/medgemma/*.gguf
+
+# IDE/editor
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
