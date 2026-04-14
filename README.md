@@ -17,7 +17,7 @@ Offline-first FastAPI backend for multimodal health assessment workflows used by
 
 ## Tech Stack
 
-- Python 3.10-3.12
+- Python 3.10-3.13 (3.11/3.12 recommended)
 - FastAPI + Uvicorn
 - SQLAlchemy + SQLite
 - ChromaDB
@@ -75,6 +75,14 @@ source .venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
+
+Optional offline STT (AI4Bharat IndicConformer via NeMo):
+
+```bash
+pip install "nemo_toolkit[asr]>=1.22.0"
+```
+
+Note: the NeMo offline STT package is optional, works best on Python 3.10-3.12, and may need Microsoft C++ Build Tools on Windows.
 
 ### 4. Run setup (recommended)
 

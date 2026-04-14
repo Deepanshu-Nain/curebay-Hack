@@ -19,7 +19,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Check Python
 if ! command -v python3 &>/dev/null; then
     echo "  [ERROR] python3 not found."
-    echo "  Install Python 3.10+ from https://python.org or your package manager:"
+    echo "  Install Python 3.10, 3.11, 3.12, or 3.13 from https://python.org or your package manager:"
     echo "    Ubuntu/Debian:  sudo apt install python3 python3-pip"
     echo "    macOS:          brew install python3"
     exit 1
@@ -31,4 +31,11 @@ echo ""
 
 # Run the cross-platform setup script
 cd "$DIR"
-python3 setup.py "$@"
+
+# Ensure project virtual environment exists
+if [ ! -x "$DIR/.venv/bin/python" ]; then
+    echo "  Creating project virtual environment (.venv)..."
+    python3 -m venv "$DIR/.venv"
+fi
+
+"$DIR/.venv/bin/python" "$DIR/setup.py" "$@"

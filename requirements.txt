@@ -1,15 +1,20 @@
 # ============================================================
-# CureBay AI Health Assistant — Python Dependencies
+# CureBay AI Health Assistant — Python Dependencies (Base)
 # ============================================================
 # Install: pip install -r requirements.txt
+#
+# Python compatibility for core backend setup: 3.10-3.13
 #
 # Architecture: Fully offline (no Ollama)
 #   LLM:        MedGemma GGUF via llama-cpp-python
 #   Embeddings: all-MiniLM-L6-v2 via sentence-transformers
-#   STT:        AI4Bharat IndicConformer via NeMo (offline)
+#   STT:        AI4Bharat IndicConformer via NeMo (offline, optional)
 #               + Sarvam AI API (online, optional)
 #   Vision:     EfficientNetV2-Small via torchvision
 # ============================================================
+
+# Use prebuilt CPU wheels for llama-cpp-python on Windows/Linux/macOS.
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 
 # ── Web Framework ──────────────────────────────────────────────
 fastapi>=0.110.0
@@ -39,8 +44,11 @@ torchvision>=0.15.0               # Pre-trained EfficientNetV2 models
 Pillow>=10.0.0                    # Image loading and transforms
 
 # ── Voice — AI4Bharat (offline, Indian languages) ─────────────
-nemo_toolkit[asr]>=1.22.0         # NVIDIA NeMo for IndicConformer
-# Model auto-downloads from HuggingFace on first use (~600MB)
+# Optional package (not installed by default to keep setup reliable):
+#   pip install "nemo_toolkit[asr]>=1.22.0"
+# Notes:
+# - Recommended on Python 3.10-3.12 for best compatibility.
+# - On Windows, may require Microsoft C++ Build Tools.
 
 # ── Voice — Sarvam AI (online, optional) ──────────────────────
 requests>=2.31.0                  # HTTP client for Sarvam API

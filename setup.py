@@ -25,6 +25,7 @@ import platform
 import shutil
 import time
 import argparse
+import shlex
 from pathlib import Path
 
 # ── Terminal colours ──────────────────────────────────────────
@@ -49,6 +50,56 @@ OS   = platform.system()          # "Windows" | "Linux" | "Darwin"
 ARCH = platform.machine().lower() # "AMD64" | "x86_64" | "arm64" / "aarch64"
 
 BASE_DIR = Path(__file__).resolve().parent
+VENV_DIR = BASE_DIR / ".venv"
+
+
+def _venv_python_path(venv_dir: Path) -> Path:
+    if OS == "Windows":
+        return venv_dir / "Scripts" / "python.exe"
+    return venv_dir / "bin" / "python"
+
+
+def _is_running_inside_venv(venv_dir: Path) -> bool:
+    try:
+        exe = Path(sys.executable).resolve()
+        vdir = venv_dir.resolve()
+        return exe.is_relative_to(vdir)
+    except Exception:
+        # Conservative fallback
+        return str(venv_dir).lower() in str(sys.executable).lower()
+
+
+def ensure_project_venv_and_reexec(no_venv: bool = False, recreate: bool = False):
+    """Ensure setup runs inside BASE_DIR/.venv (reduces Windows install issues)."""
+    if no_venv:
+        return
+
+    if _is_running_inside_venv(VENV_DIR):
+        return
+
+    if recreate and VENV_DIR.exists():
+        info(f"Recreating virtual environment: {VENV_DIR}")
+        try:
+            shutil.rmtree(VENV_DIR, ignore_errors=False)
+        except Exception as e:
+            err(f"Failed to delete existing venv: {e}")
+            err("Close any terminals/apps using the venv and try again.")
+            sys.exit(1)
+
+    venv_py = _venv_python_path(VENV_DIR)
+    if not venv_py.exists():
+        hdr("Bootstrapping Virtual Environment (.venv)")
+        info("Creating .venv (first time only)...")
+        try:
+            subprocess.run([sys.executable, "-m", "venv", str(VENV_DIR)], check=True, cwd=str(BASE_DIR))
+            ok("Virtual environment created.")
+        except subprocess.CalledProcessError:
+            err("Failed to create virtual environment.")
+            sys.exit(1)
+
+    info(f"Re-launching setup using: {venv_py}")
+    filtered_args = [a for a in sys.argv[1:] if a != "--recreate-venv"]
+    raise SystemExit(subprocess.call([str(venv_py), str(__file__), *filtered_args], cwd=str(BASE_DIR)))
 
 # ── Model info ────────────────────────────────────────────────
 MEDGEMMA_REPO      = "unsloth/medgemma-1.5-4b-it-GGUF"
@@ -134,14 +185,14 @@ def check_system_requirements():
     else:
         warn("Could not detect free disk space.")
 
-    # Python version (native ML dependencies are most stable on 3.10-3.12)
+    # Python version (core stack supports 3.10-3.13)
     py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     if (3, 10) <= sys.version_info < (3, 14):
         ok(f"Python: {py_ver}")
     else:
-        err(f"Python: {py_ver} — use Python 3.10, 3.11, or 3.12 for this project.")
-        err("Reason: llama-cpp-python / NeMo may fail to build on unsupported versions.")
-        err("Install Python 3.11 or 3.12 and run setup again.")
+        err(f"Python: {py_ver} — use Python 3.10, 3.11, 3.12, or 3.13 for this project.")
+        err("Reason: several ML dependencies are not validated on this Python version.")
+        err("Install Python 3.11 or 3.12 for the most stable experience.")
         sys.exit(1)
 
     print(f"  OS: {OS} / {ARCH}")
@@ -163,6 +214,7 @@ def ensure_python_deps():
     # don't block the full setup on platforms missing native build tools.
     core_reqs = []
     optional_reqs = []
+    pip_install_options = []
 
     for raw in req_file.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
@@ -172,30 +224,64 @@ def ensure_python_deps():
             line = line.split(" #", 1)[0].strip()
         if not line:
             continue
-        if line.startswith("nemo_toolkit"):
-            optional_reqs.append(line)
-        else:
-            core_reqs.append(line)
+        if line.startswith("-"):
+            # Allow pip options in requirements.txt (e.g. --extra-index-url ...)
+            # by expanding them into proper argv tokens.
+            try:
+                pip_install_options.extend(shlex.split(line))
+            except ValueError:
+                warn(f"Ignoring malformed pip option line in requirements: {line}")
+            continue
+        core_reqs.append(line)
+
+    default_llama_cpp_index = "https://abetlen.github.io/llama-cpp-python/whl/cpu"
+    if "--extra-index-url" not in pip_install_options:
+        pip_install_options.extend(["--extra-index-url", default_llama_cpp_index])
+
+    # Optional NeMo dependency for offline ASR.
+    # Keep this outside requirements.txt so base install remains robust.
+    if (3, 10) <= sys.version_info < (3, 13):
+        optional_reqs.append("nemo_toolkit[asr]>=1.22.0")
+    else:
+        warn("Skipping optional NeMo install on this Python version (requires 3.10-3.12).")
 
     if core_reqs:
         info("Installing core requirements (this can take several minutes)...")
+        # Pre-install setuptools constraint for PyTorch compatibility BEFORE main install
+        # This avoids the setuptools upgrade/downgrade churn that triggers WinError 32
         try:
             subprocess.run(
-                [sys.executable, "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"],
+                [sys.executable, "-m", "pip", "install", "setuptools<82", "--quiet"],
                 check=True,
             )
-            subprocess.run(
-                [
-                    sys.executable, "-m", "pip", "install", 
-                    "--prefer-binary", 
-                    "--extra-index-url", "https://abetlen.github.io/llama-cpp-python/whl/cpu", 
-                    *core_reqs
-                ],
-                check=True,
-            )
-            ok("Core Python dependencies installed.")
         except subprocess.CalledProcessError:
-            err("Core dependency installation failed.")
+            warn("Could not pre-install setuptools constraint; continuing anyway")
+
+        max_retries = 2
+        retry_delay = 3  # seconds
+
+        for attempt in range(max_retries + 1):
+            try:
+                if attempt > 0:
+                    info(f"Retry attempt {attempt}/{max_retries}...")
+                    time.sleep(retry_delay)
+
+                subprocess.run(
+                    [
+                        sys.executable, "-m", "pip", "install",
+                        "--prefer-binary",
+                        *pip_install_options,
+                        *core_reqs
+                    ],
+                    check=True,
+                )
+                ok("Core Python dependencies installed.")
+                break  # Success - exit retry loop
+            except subprocess.CalledProcessError as e:
+                if attempt < max_retries:
+                    warn(f"Install failed (attempt {attempt + 1}), retrying in {retry_delay}s...")
+                else:
+                    err("Core dependency installation failed.")
             if OS == "Windows":
                 warn("If the error mentions CMake/NMake or Visual C++, install Build Tools:")
                 warn("  https://visualstudio.microsoft.com/visual-cpp-build-tools/")
@@ -437,7 +523,13 @@ Examples:
     )
     parser.add_argument("--check",     action="store_true", help="Show installation status")
     parser.add_argument("--no-server", action="store_true", help="Setup without starting server")
+    parser.add_argument("--no-venv", action="store_true", help="Do not create/use .venv; run in current Python")
+    parser.add_argument("--recreate-venv", action="store_true", help="Delete and recreate .venv before installing")
     args = parser.parse_args()
+
+    # Always run installs in a dedicated project venv (unless explicitly disabled).
+    # This avoids system-Python pollution and reduces Windows file-lock failures.
+    ensure_project_venv_and_reexec(no_venv=args.no_venv, recreate=args.recreate_venv)
 
     print(f"""
 {C.BOLD}{C.CYAN}
