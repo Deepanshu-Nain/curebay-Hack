@@ -12,17 +12,20 @@
 # ============================================================
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from loguru import logger
+from sqlalchemy.orm import Session
 import sys
 
 from config import settings
-from database.sqlite_db import init_db
+from database.sqlite_db import init_db, get_db
 from database.vector_db import vector_db
 from services.rag_service import rag_service
 from services.llm_service import llm_service
+from models.db_models import User
 from routers import auth, patients, assessment
 
 
@@ -57,12 +60,42 @@ async def lifespan(app: FastAPI):
     logger.info("Step 1/4: Initialising SQLite database...")
     init_db()
 
-    # 2. Connect to ChromaDB vector store
-    logger.info("Step 2/4: Connecting to ChromaDB vector store...")
+    # 2. Create demo user for testing
+    logger.info("Step 2/4: Creating demo user for testing...")
+    try:
+        from database.sqlite_db import get_db
+        from routers.auth import hash_password
+        db = next(get_db())
+        demo_user = db.query(User).filter(User.username == "demo").first()
+        if not demo_user:
+            demo_user = User(
+                name="Demo Health Worker",
+                username="demo",
+                email="demo@curebay.local",
+                phone="+919876543210",
+                hashed_password=hash_password("demo123"),
+                village="Demo Village",
+                district="Demo District",
+                state="Demo State",
+                pincode="000000",
+                role="ASHA",
+                preferred_lang="en",
+            )
+            db.add(demo_user)
+            db.commit()
+            logger.success("Demo user created: username=demo, password=demo123")
+        else:
+            logger.success("Demo user already exists: username=demo, password=demo123")
+        db.close()
+    except Exception as e:
+        logger.warning(f"Could not create demo user: {e}")
+
+    # 3. Connect to ChromaDB vector store
+    logger.info("Step 3/5: Connecting to ChromaDB vector store...")
     vector_db.connect()
 
-    # 3. Seed disease knowledge base if not already done
-    logger.info("Step 3/4: Seeding disease knowledge base (MiniLM embeddings)...")
+    # 4. Seed disease knowledge base if not already done
+    logger.info("Step 4/5: Seeding disease knowledge base (MiniLM embeddings)...")
     try:
         count = rag_service.seed_disease_knowledge()
         logger.success(f"Disease KB ready: {count} documents in vector store.")
@@ -73,8 +106,8 @@ async def lifespan(app: FastAPI):
             "It will auto-download on first use (~80 MB)."
         )
 
-    # 4. Check MedGemma LLM availability
-    logger.info("Step 4/4: Checking MedGemma LLM...")
+    # 5. Check MedGemma LLM availability
+    logger.info("Step 5/5: Checking MedGemma LLM...")
     if llm_service.is_available():
         logger.success(f"MedGemma ready: {llm_service.get_model_name()}")
     else:
@@ -82,6 +115,8 @@ async def lifespan(app: FastAPI):
 
     logger.info("CureBay backend is ready.")
     logger.info(f"API docs: http://localhost:8000/docs")
+    logger.info(f"Demo login: username=demo, password=demo123")
+    logger.info(f"Get token: GET /demo/token or POST /auth/login")
     logger.info(f"Setup help: python setup.py --check")
 
     yield
@@ -284,3 +319,46 @@ def reseed_knowledge_base(current_user=None):
         return {"message": f"Knowledge base re-seeded with {count} documents."}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ── Demo / Testing endpoints ────────────────────────────────────
+
+@app.get("/demo/token", tags=["Demo"], summary="Get demo user token")
+def get_demo_token(db: Session = Depends(get_db)):
+    """
+    Get a valid JWT token for testing purposes.
+
+    This creates a demo user if not exists and returns a token.
+    Use this token in the Authorize button above (or add `Authorization: Bearer <token>` header).
+    """
+    from routers.auth import create_access_token, hash_password
+
+    # Try to find or create demo user
+    demo_user = db.query(User).filter(User.username == "demo").first()
+
+    if not demo_user:
+        demo_user = User(
+            name="Demo Health Worker",
+            username="demo",
+            email="demo@curebay.local",
+            phone="+919876543210",
+            hashed_password=hash_password("demo123"),
+            village="Demo Village",
+            district="Demo District",
+            state="Demo State",
+            pincode="000000",
+            role="ASHA",
+            preferred_lang="en",
+        )
+        db.add(demo_user)
+        db.commit()
+        db.refresh(demo_user)
+
+    token = create_access_token({"sub": demo_user.id, "role": demo_user.role})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "demo_username": "demo",
+        "demo_password": "demo123",
+        "usage": "Click 'Authorize' button above and enter: Bearer <access_token>",
+    }

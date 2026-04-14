@@ -5,10 +5,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from config import settings
@@ -18,18 +18,28 @@ from models.schemas import (
     UserRegister, TokenResponse, UserProfile, MessageResponse, ChangePasswordRequest
 )
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Authentication (Login Required)"])
 
 # ── Password hashing ──────────────────────────────────────────
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Using bcrypt directly for better compatibility with newer versions
+import bcrypt
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """Hash password using bcrypt."""
+    # bcrypt expects bytes and returns bytes, decode to string for DB storage
+    password_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode('utf-8')
+
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    """Verify password against hash."""
+    password_bytes = plain.encode('utf-8')
+    hashed_bytes = hashed.encode('utf-8')
+    return bcrypt.checkpw(password_bytes, hashed_bytes)
 
 
 # ── JWT ───────────────────────────────────────────────────────
@@ -70,7 +80,20 @@ def get_current_user(
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
 def register(payload: UserRegister, db: Session = Depends(get_db)):
-    """Register a new health worker account."""
+    """
+    Register a new health worker account.
+
+    After registration, you'll receive a JWT token automatically.
+    Use this token to authenticate other endpoints.
+
+    **Required fields:**
+    - `username`: Unique username
+    - `password`: At least 6 characters
+    - `name`: Full name
+    - `role`: ASHA, ANM, MO, or Other
+
+    **Optional fields:** email, phone, village, district, state, pincode, preferred_lang
+    """
     # Check unique username
     if db.query(User).filter(User.username == payload.username).first():
         raise HTTPException(400, detail="Username already taken.")
@@ -98,12 +121,22 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
     return TokenResponse(access_token=token, user_id=user.id, name=user.name)
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse, summary="Login - Get JWT Token")
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    """Login with username and password."""
+    """
+    Login with username and password to get a JWT access token.
+
+    **How to use in Swagger UI:**
+    1. Use the demo account: username=`demo`, password=`demo123`
+    2. Or register first using POST /auth/register
+    3. Copy the `access_token` from response
+    4. Click 'Authorize' button at top and enter: `Bearer <your_token>`
+
+    **For programmatic use:** Send form data with `username` and `password` fields.
+    """
     user = db.query(User).filter(User.username == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
