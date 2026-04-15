@@ -18,6 +18,7 @@ class VectorDB:
     def __init__(self):
         self._client = None
         self._collections: Dict[str, Any] = {}
+        self._collection_aliases: Dict[str, str] = {}
 
     def connect(self):
         """Initialise persistent ChromaDB client."""
@@ -40,14 +41,39 @@ class VectorDB:
             logger.error(f"ChromaDB connection failed: {e}")
             raise
 
-    def _get_collection(self, name: str):
+    def _resolve_collection_name(self, logical_name: str) -> str:
+        """
+        Map logical collection names to physical names.
+
+        Embedding vectors are dimension-specific in ChromaDB, so we namespace
+        key collections by embedding dimension to avoid legacy mismatch errors.
+        """
+        if logical_name in self._collection_aliases:
+            return self._collection_aliases[logical_name]
+
+        dim_scoped = {
+            settings.VECTOR_COLLECTION_DISEASE,
+            settings.VECTOR_COLLECTION_PATIENTS,
+        }
+        if logical_name in dim_scoped:
+            physical_name = f"{logical_name}_d{settings.EMBEDDING_DIMENSION}"
+        else:
+            physical_name = logical_name
+
+        self._collection_aliases[logical_name] = physical_name
+        return physical_name
+
+    def _get_collection(self, logical_name: str):
         """Get or create a collection (cached)."""
-        if name not in self._collections:
-            self._collections[name] = self._client.get_or_create_collection(
-                name=name,
+        physical_name = self._resolve_collection_name(logical_name)
+
+        if physical_name not in self._collections:
+            self._collections[physical_name] = self._client.get_or_create_collection(
+                name=physical_name,
                 metadata={"hnsw:space": "cosine"},  # cosine similarity
             )
-        return self._collections[name]
+            logger.info(f"Using Chroma collection '{logical_name}' -> '{physical_name}'")
+        return self._collections[physical_name]
 
     def upsert(
         self,

@@ -22,6 +22,7 @@ from typing import Optional
 from fastapi import (
     APIRouter, Depends, HTTPException, UploadFile, File, Form
 )
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from config import settings
@@ -30,8 +31,6 @@ from models.db_models import (
     Assessment, Patient, ConversationSession, InputType, RiskLevel
 )
 from models.schemas import AssessmentRequest, FollowupRequest
-from routers.auth import get_current_user
-from models.db_models import User
 from services.rag_service import rag_service
 from services.llm_service import llm_service
 from services.voice_service import voice_service
@@ -59,7 +58,6 @@ def _run_assessment(
     symptoms_text: str,
     input_type: InputType,
     db: Session,
-    current_user: User,
     image_path: Optional[str] = None,
     voice_path: Optional[str] = None,
     vitals_dict: Optional[dict] = None,
@@ -218,6 +216,17 @@ def _run_assessment(
     return response
 
 
+def _run_assessment_safe(**kwargs) -> dict:
+    """Wrap assessment execution so unexpected exceptions still return JSON errors."""
+    try:
+        return _run_assessment(**kwargs)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Assessment pipeline failed for patient={kwargs.get('patient_id')}")
+        raise HTTPException(500, detail=f"Assessment pipeline failed: {str(e)}")
+
+
 def _format_response(a: Assessment) -> dict:
     return {
         "id": a.id,
@@ -241,7 +250,6 @@ def _format_response(a: Assessment) -> dict:
 def assess_text(
     payload: AssessmentRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """
     Submit typed symptoms and optional vitals for AI health assessment.
@@ -249,12 +257,11 @@ def assess_text(
     If the AI needs more information, it will return follow-up questions.
     """
     vitals = payload.vitals.model_dump(exclude_none=True) if payload.vitals else None
-    return _run_assessment(
+    return _run_assessment_safe(
         patient_id=payload.patient_id,
         symptoms_text=payload.symptoms,
         input_type=InputType.TEXT,
         db=db,
-        current_user=current_user,
         vitals_dict=vitals,
         language=payload.language,
     )
@@ -273,7 +280,6 @@ async def assess_voice(
     pulse_bpm: Optional[int] = Form(default=None),
     spo2_pct: Optional[float] = Form(default=None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """
     Upload a voice recording (in any Indian language) for assessment.
@@ -314,12 +320,11 @@ async def assess_voice(
     if pulse_bpm:    vitals["pulse_bpm"]    = pulse_bpm
     if spo2_pct:     vitals["spo2_pct"]     = spo2_pct
 
-    result = _run_assessment(
+    result = _run_assessment_safe(
         patient_id=patient_id,
         symptoms_text=transcribed_text,
         input_type=InputType.VOICE,
         db=db,
-        current_user=current_user,
         voice_path=str(audio_path),
         vitals_dict=vitals or None,
         language=detected_lang or language,
@@ -338,7 +343,6 @@ async def assess_image(
     additional_symptoms: Optional[str] = Form(default=None),
     image_file: UploadFile = File(..., description="Image (jpg/png/webp)"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """
     Upload a photo for AI assessment.
@@ -373,12 +377,11 @@ async def assess_image(
 
     input_type = InputType.MIXED if additional_symptoms else InputType.IMAGE
 
-    result = _run_assessment(
+    result = _run_assessment_safe(
         patient_id=patient_id,
         symptoms_text=combined_symptoms,
         input_type=input_type,
         db=db,
-        current_user=current_user,
         image_path=str(img_path),
         language=language,
     )
@@ -392,7 +395,6 @@ async def assess_image(
 def assess_followup(
     payload: FollowupRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """
     Submit answers to follow-up questions from a previous assessment.
@@ -434,12 +436,11 @@ def assess_followup(
     db.commit()
 
     # Run assessment again with all accumulated context
-    return _run_assessment(
+    return _run_assessment_safe(
         patient_id=session.patient_id,
         symptoms_text=accumulated,
         input_type=InputType.TEXT,
         db=db,
-        current_user=current_user,
         language=payload.language,
         session_id=session.id,
         accumulated_context=accumulated,
@@ -453,7 +454,6 @@ async def extract_rppg_vitals(
     patient_id: str = Form(...),
     video_file: UploadFile = File(..., description="Short facial video (10-15s, mp4/webm)"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """
     Upload a short video of the patient's face (10-15 seconds) to extract
@@ -507,7 +507,6 @@ async def extract_rppg_vitals(
 def get_session(
     session_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """Retrieve the full state of an interactive conversation session."""
     session = db.query(ConversationSession).filter(
@@ -538,7 +537,6 @@ def get_patient_assessments(
     patient_id: str,
     limit: int = 20,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """Retrieve all past assessments for a patient."""
     assessments = (
@@ -555,7 +553,6 @@ def get_patient_assessments(
 def get_assessment(
     assessment_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
     if not assessment:

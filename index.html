@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CureBay — Rural Health AI Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f2ee;
+  --surface: #ffffff;
+  --surface-2: #f0ece6;
+  --border: #e2ddd6;
+  --text: #1a1714;
+  --text-muted: #7a7068;
+  --accent: #2a6b4f;
+  --accent-light: #e8f4ef;
+  --accent-dark: #1d4d38;
+  --emergency: #c0392b;
+  --emergency-light: #fdf0ee;
+  --urgent: #d68910;
+  --urgent-light: #fef9e7;
+  --normal: #27ae60;
+  --normal-light: #eafaf1;
+  --radius: 14px;
+  --shadow: 0 2px 16px rgba(0,0,0,0.07);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ─── AUTH ─────────────────────────────────── */
+#auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1d4d38 0%, #2a6b4f 50%, #3a8a65 100%);
+  position: relative;
+  overflow: hidden;
+}
+#auth-screen::before {
+  content: '';
+  position: absolute;
+  width: 600px; height: 600px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 50%;
+  top: -200px; right: -150px;
+}
+#auth-screen::after {
+  content: '';
+  position: absolute;
+  width: 400px; height: 400px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 50%;
+  bottom: -100px; left: -100px;
+}
+
+.auth-card {
+  background: white;
+  border-radius: 24px;
+  padding: 48px;
+  width: 440px;
+  max-width: 95vw;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.25);
+  position: relative;
+  z-index: 1;
+}
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.auth-logo-icon {
+  width: 44px; height: 44px;
+  background: var(--accent);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+.auth-logo-text {
+  font-family: 'DM Serif Display', serif;
+  font-size: 26px;
+  color: var(--text);
+}
+.auth-tagline { color: var(--text-muted); font-size: 13px; margin-bottom: 36px; }
+.auth-tabs { display: flex; gap: 4px; background: var(--bg); border-radius: 10px; padding: 4px; margin-bottom: 28px; }
+.auth-tab {
+  flex: 1; padding: 8px; border: none; background: transparent;
+  border-radius: 8px; font-family: inherit; font-size: 14px;
+  font-weight: 500; cursor: pointer; color: var(--text-muted);
+  transition: all 0.2s;
+}
+.auth-tab.active { background: white; color: var(--text); box-shadow: 0 1px 6px rgba(0,0,0,0.1); }
+
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 13px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; }
+.form-input {
+  width: 100%; padding: 11px 14px; border: 1.5px solid var(--border);
+  border-radius: 10px; font-family: inherit; font-size: 14px;
+  color: var(--text); background: white; transition: all 0.2s; outline: none;
+}
+.form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.btn-primary {
+  width: 100%; padding: 13px; background: var(--accent);
+  color: white; border: none; border-radius: 10px;
+  font-family: inherit; font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; margin-top: 4px;
+}
+.btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* ─── APP LAYOUT ─────────────────────────────── */
+#app-screen { display: none; min-height: 100vh; }
+
+.sidebar {
+  position: fixed; left: 0; top: 0; bottom: 0;
+  width: 240px;
+  background: var(--text);
+  display: flex; flex-direction: column;
+  z-index: 100;
+}
+.sidebar-logo {
+  padding: 28px 24px 24px;
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.sidebar-logo-icon {
+  width: 36px; height: 36px;
+  background: var(--accent);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.sidebar-logo-text {
+  font-family: 'DM Serif Display', serif;
+  font-size: 20px;
+  color: white;
+}
+
+.sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
+.nav-section { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: rgba(255,255,255,0.3); padding: 12px 12px 6px; text-transform: uppercase; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 9px;
+  color: rgba(255,255,255,0.65); font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s; margin-bottom: 2px;
+}
+.nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+.nav-item.active { background: var(--accent); color: white; }
+.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+.sidebar-user {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center; gap: 10px;
+}
+.user-avatar {
+  width: 34px; height: 34px; background: var(--accent);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: white; font-size: 14px; flex-shrink: 0;
+}
+.user-name { font-size: 13px; color: rgba(255,255,255,0.85); font-weight: 500; }
+.user-role { font-size: 11px; color: rgba(255,255,255,0.4); }
+.btn-logout {
+  margin-left: auto; background: rgba(255,255,255,0.1); border: none;
+  color: rgba(255,255,255,0.5); border-radius: 6px; padding: 5px 8px;
+  font-size: 11px; cursor: pointer;
+}
+
+.main-content {
+  margin-left: 240px; min-height: 100vh;
+  padding: 32px;
+}
+
+/* ─── PAGES ─────────────────────────────────── */
+.page { display: none; }
+.page.active { display: block; }
+
+.page-header { margin-bottom: 28px; }
+.page-title { font-family: 'DM Serif Display', serif; font-size: 30px; color: var(--text); }
+.page-subtitle { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+
+/* ─── CARDS ─────────────────────────────────── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px;
+  box-shadow: var(--shadow);
+}
+.card-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+
+/* ─── DASHBOARD ────────────────────────────── */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px;
+}
+.stat-value { font-family: 'DM Serif Display', serif; font-size: 38px; color: var(--text); }
+.stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.stat-change { font-size: 12px; color: var(--accent); margin-top: 8px; }
+
+.health-status {
+  display: flex; align-items: center; gap: 12px; padding: 16px 20px;
+  background: var(--accent-light); border-radius: 10px; margin-bottom: 20px;
+  border: 1px solid rgba(42,107,79,0.15);
+}
+.health-status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.health-status.degraded { background: var(--urgent-light); border-color: rgba(214,137,16,0.15); }
+.health-status.degraded .health-status-dot { background: var(--urgent); }
+
+/* ─── PATIENTS ─────────────────────────────── */
+.patient-search {
+  display: flex; gap: 12px; margin-bottom: 20px; align-items: center;
+}
+.search-input {
+  flex: 1; padding: 10px 14px; border: 1.5px solid var(--border);
+  border-radius: 10px; font-family: inherit; font-size: 14px; outline: none;
+}
+.search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+.btn-secondary {
+  padding: 10px 18px; background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 500;
+  cursor: pointer; color: var(--text); transition: all 0.2s;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+.patient-table { width: 100%; border-collapse: collapse; }
+.patient-table th {
+  text-align: left; padding: 10px 16px;
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border); background: var(--surface-2);
+}
+.patient-table td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.patient-table tr:last-child td { border-bottom: none; }
+.patient-table tr:hover td { background: var(--surface-2); cursor: pointer; }
+
+.patient-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px; margin-right: 8px;
+  background: var(--accent-light); color: var(--accent);
+}
+.badge {
+  display: inline-flex; align-items: center; padding: 3px 10px;
+  border-radius: 20px; font-size: 12px; font-weight: 600;
+}
+.badge-male { background: #e8f0fe; color: #3b72d9; }
+.badge-female { background: #fce8f3; color: #c2185b; }
+
+/* ─── ASSESSMENT ─────────────────────────────── */
+.input-tabs { display: flex; gap: 0; margin-bottom: 24px; background: var(--surface-2); border-radius: 12px; padding: 4px; border: 1px solid var(--border); }
+.input-tab {
+  flex: 1; padding: 10px 16px; border: none; background: transparent;
+  border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 500;
+  cursor: pointer; color: var(--text-muted); transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.input-tab.active { background: white; color: var(--text); box-shadow: 0 1px 6px rgba(0,0,0,0.1); }
+
+.assessment-form { display: flex; gap: 24px; }
+.assessment-left { flex: 2; }
+.assessment-right { flex: 1; }
+
+.vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.patient-select {
+  width: 100%; padding: 11px 14px; border: 1.5px solid var(--border);
+  border-radius: 10px; font-family: inherit; font-size: 14px;
+  background: white; outline: none; cursor: pointer;
+}
+.patient-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+
+.symptoms-textarea {
+  width: 100%; padding: 14px; border: 1.5px solid var(--border);
+  border-radius: 10px; font-family: inherit; font-size: 14px;
+  resize: vertical; min-height: 140px; outline: none; line-height: 1.6;
+}
+.symptoms-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+
+/* Voice recorder */
+.voice-recorder {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 16px; padding: 40px;
+  background: var(--surface-2); border-radius: 12px; border: 2px dashed var(--border);
+}
+.record-btn {
+  width: 72px; height: 72px; border-radius: 50%;
+  border: none; background: var(--accent); color: white;
+  font-size: 28px; cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(42,107,79,0.3);
+}
+.record-btn:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(42,107,79,0.4); }
+.record-btn.recording { background: var(--emergency); animation: recordPulse 1s infinite; }
+@keyframes recordPulse { 0%,100%{box-shadow: 0 4px 16px rgba(192,57,43,0.3)} 50%{box-shadow: 0 4px 32px rgba(192,57,43,0.6)} }
+.voice-status { font-size: 14px; color: var(--text-muted); }
+.voice-transcript {
+  width: 100%; padding: 12px; background: white; border: 1px solid var(--border);
+  border-radius: 10px; font-size: 14px; color: var(--text); min-height: 60px;
+  font-style: italic;
+}
+
+/* Image uploader */
+.image-uploader {
+  border: 2px dashed var(--border); border-radius: 12px; padding: 40px;
+  text-align: center; cursor: pointer; transition: all 0.2s;
+  background: var(--surface-2);
+}
+.image-uploader:hover { border-color: var(--accent); background: var(--accent-light); }
+.image-uploader.has-file { border-style: solid; border-color: var(--accent); }
+.upload-icon { font-size: 36px; margin-bottom: 8px; }
+.upload-text { font-size: 14px; color: var(--text-muted); }
+.upload-preview { max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 12px; }
+
+/* ─── RESULTS ─────────────────────────────── */
+.result-card {
+  border-radius: var(--radius); padding: 28px;
+  border: 2px solid transparent; margin-bottom: 16px;
+}
+.result-card.EMERGENCY { background: var(--emergency-light); border-color: var(--emergency); }
+.result-card.URGENT { background: var(--urgent-light); border-color: var(--urgent); }
+.result-card.NORMAL { background: var(--normal-light); border-color: var(--normal); }
+
+.risk-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 14px;
+  margin-bottom: 12px;
+}
+.risk-badge.EMERGENCY { background: var(--emergency); color: white; }
+.risk-badge.URGENT { background: var(--urgent); color: white; }
+.risk-badge.NORMAL { background: var(--normal); color: white; }
+
+.conditions-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.condition-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: white; border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.condition-name { font-weight: 500; font-size: 14px; }
+.condition-prob { font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 12px; }
+.prob-High { background: #fde8e8; color: #c0392b; }
+.prob-Medium { background: #fef9e7; color: #d68910; }
+.prob-Low { background: #eafaf1; color: #27ae60; }
+
+.steps-list { list-style: none; padding: 0; }
+.steps-list li {
+  padding: 10px 0; display: flex; gap: 12px; align-items: flex-start;
+  border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.steps-list li:last-child { border-bottom: none; }
+.step-num {
+  width: 24px; height: 24px; border-radius: 50%; background: var(--accent);
+  color: white; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+}
+
+.followup-card {
+  background: var(--accent-light); border: 1px solid rgba(42,107,79,0.2);
+  border-radius: var(--radius); padding: 24px; margin-bottom: 16px;
+}
+.followup-title { font-weight: 600; color: var(--accent-dark); margin-bottom: 16px; }
+.followup-q { margin-bottom: 16px; }
+.followup-q label { font-size: 14px; font-weight: 500; display: block; margin-bottom: 6px; }
+
+/* ─── HISTORY ─────────────────────────────── */
+.history-item {
+  display: flex; align-items: center; gap: 16px; padding: 16px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+  transition: background 0.15s;
+}
+.history-item:hover { background: var(--surface-2); }
+.history-item:last-child { border-bottom: none; }
+.history-risk {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.history-info { flex: 1; }
+.history-patient { font-weight: 500; font-size: 14px; }
+.history-symptoms { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.history-date { font-size: 12px; color: var(--text-muted); }
+
+/* ─── MODALS ─────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; display: none;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: white; border-radius: 20px; padding: 32px;
+  width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.modal-title { font-family: 'DM Serif Display', serif; font-size: 22px; }
+.modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); }
+
+/* ─── UTILS ─────────────────────────────── */
+.loading {
+  display: flex; align-items: center; gap: 12px;
+  padding: 24px; color: var(--text-muted); font-size: 14px;
+}
+.spinner {
+  width: 20px; height: 20px; border: 2px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  background: var(--text); color: white; padding: 14px 20px;
+  border-radius: 10px; font-size: 14px; max-width: 320px;
+  transform: translateY(100px); opacity: 0; transition: all 0.3s;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.error { background: var(--emergency); }
+.toast.success { background: var(--accent); }
+
+.section-divider { height: 1px; background: var(--border); margin: 24px 0; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-text { font-size: 15px; }
+
+.confidence-bar {
+  height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 8px;
+}
+.confidence-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 1s; }
+
+.lang-select {
+  padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+  font-family: inherit; font-size: 13px; outline: none; background: white;
+}
+
+/* Patient detail */
+.patient-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.detail-field label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 3px; }
+.detail-field p { font-size: 14px; color: var(--text); }
+
+/* Progress dots for assessment */
+.progress-steps { display: flex; gap: 8px; margin-bottom: 24px; align-items: center; }
+.progress-step { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.progress-step.done { background: var(--accent); }
+.progress-step.current { background: var(--accent); width: 24px; border-radius: 4px; }
+
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main-content { margin-left: 0; padding: 16px; }
+  .stat-grid { grid-template-columns: 1fr; }
+  .assessment-form { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ─── AUTH SCREEN ────────────────────────────────────── -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🏥</div>
+      <span class="auth-logo-text">CureBay</span>
+    </div>
+    <p class="auth-tagline">Offline-First AI Health Assistant for Rural ASHA Workers</p>
+    
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+    </div>
+
+    <div id="login-form">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input id="login-username" class="form-input" type="text" placeholder="Your username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input id="login-password" class="form-input" type="password" placeholder="Your password" autocomplete="current-password">
+      </div>
+      <button class="btn-primary" onclick="login()" id="login-btn">Sign In →</button>
+    </div>
+
+    <div id="register-form" style="display:none">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input id="reg-name" class="form-input" type="text" placeholder="Sita Devi">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input id="reg-username" class="form-input" type="text" placeholder="sita_asha">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input id="reg-password" class="form-input" type="password" placeholder="Min 6 characters">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Phone (optional)</label>
+          <input id="reg-phone" class="form-input" type="tel" placeholder="9876543210">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Role</label>
+          <select id="reg-role" class="form-input">
+            <option value="asha">ASHA Worker</option>
+            <option value="anm">ANM</option>
+            <option value="doctor">Doctor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">District</label>
+          <input id="reg-district" class="form-input" type="text" placeholder="District">
+        </div>
+        <div class="form-group">
+          <label class="form-label">State</label>
+          <input id="reg-state" class="form-input" type="text" placeholder="State">
+        </div>
+      </div>
+      <button class="btn-primary" onclick="register()">Create Account →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── APP SCREEN ─────────────────────────────────────── -->
+<div id="app-screen">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">🏥</div>
+      <span class="sidebar-logo-text">CureBay</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('patients')">
+        <span class="nav-icon">👥</span> Patients
+      </div>
+      <div class="nav-section">Assessment</div>
+      <div class="nav-item" onclick="showPage('assess')">
+        <span class="nav-icon">🔬</span> New Assessment
+      </div>
+      <div class="nav-item" onclick="showPage('history')">
+        <span class="nav-icon">📋</span> History
+      </div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <div>
+        <div class="user-name" id="user-name">...</div>
+        <div class="user-role" id="user-role">...</div>
+      </div>
+      <button class="btn-logout" onclick="logout()">Exit</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-header">
+        <h1 class="page-title">Good morning 👋</h1>
+        <p class="page-subtitle" id="dash-subtitle">Loading...</p>
+      </div>
+      <div id="health-status-bar" class="health-status">
+        <div class="health-status-dot"></div>
+        <span id="health-status-text">Checking system status...</span>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-patients">—</div>
+          <div class="stat-label">Registered Patients</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-kb">—</div>
+          <div class="stat-label">Disease KB Documents</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-model">—</div>
+          <div class="stat-label">AI Model Status</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Recent Assessments</div>
+        <div id="recent-assessments">
+          <div class="loading"><div class="spinner"></div> Loading recent assessments...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PATIENTS PAGE -->
+    <div id="page-patients" class="page">
+      <div class="page-header">
+        <h1 class="page-title">Patients</h1>
+        <p class="page-subtitle">Manage patient records</p>
+      </div>
+      <div class="card">
+        <div class="patient-search">
+          <input id="patient-search-input" class="search-input" placeholder="🔍  Search by name, phone, or village..." oninput="searchPatients(this.value)">
+          <button class="btn-secondary" onclick="openAddPatient()">+ Add Patient</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="patient-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Age / Gender</th>
+                <th>Village</th>
+                <th>Conditions</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="patients-tbody">
+              <tr><td colspan="5"><div class="loading"><div class="spinner"></div> Loading patients...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASSESS PAGE -->
+    <div id="page-assess" class="page">
+      <div class="page-header">
+        <h1 class="page-title">New Assessment</h1>
+        <p class="page-subtitle">AI-powered health evaluation using text, voice, or image</p>
+      </div>
+      
+      <div id="assess-content">
+        <div class="assessment-form">
+          <!-- Left column -->
+          <div class="assessment-left">
+            <!-- Input mode tabs -->
+            <div class="input-tabs" style="margin-bottom:20px">
+              <button class="input-tab active" onclick="switchMode('text')">📝 Text</button>
+              <button class="input-tab" onclick="switchMode('voice')">🎙️ Voice</button>
+              <button class="input-tab" onclick="switchMode('image')">📷 Image</button>
+            </div>
+
+            <!-- Patient selection -->
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-title">Patient</div>
+              <select id="assess-patient" class="patient-select">
+                <option value="">— Select a patient —</option>
+              </select>
+              <div style="margin-top:8px; display:flex; gap:8px; align-items:center">
+                <label class="form-label" style="margin:0">Language:</label>
+                <select id="assess-lang" class="lang-select">
+                  <option value="en">English</option>
+                  <option value="hi">हिंदी</option>
+                  <option value="or">ଓଡ଼ିଆ</option>
+                  <option value="bn">বাংলা</option>
+                  <option value="te">తెలుగు</option>
+                  <option value="ta">தமிழ்</option>
+                  <option value="mr">मराठी</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- TEXT mode -->
+            <div id="mode-text" class="card" style="margin-bottom:16px">
+              <div class="card-title">Symptoms</div>
+              <textarea id="symptoms-input" class="symptoms-textarea" 
+                placeholder="Describe the patient's symptoms in detail. Include: duration, severity, associated symptoms, relevant history..."></textarea>
+            </div>
+
+            <!-- VOICE mode -->
+            <div id="mode-voice" class="card" style="display:none; margin-bottom:16px">
+              <div class="card-title">Voice Input</div>
+              <div class="voice-recorder">
+                <button class="record-btn" id="record-btn" onclick="toggleRecording()">🎙️</button>
+                <div class="voice-status" id="voice-status">Tap to start recording in selected language</div>
+              </div>
+              <div id="voice-transcript-area" style="margin-top:16px; display:none">
+                <div class="form-label">Transcribed Text</div>
+                <div id="voice-transcript" class="voice-transcript">...</div>
+              </div>
+            </div>
+
+            <!-- IMAGE mode -->
+            <div id="mode-image" class="card" style="display:none; margin-bottom:16px">
+              <div class="card-title">Image Upload</div>
+              <div class="image-uploader" id="image-drop-zone" onclick="document.getElementById('image-file').click()"
+                ondragover="event.preventDefault()" ondrop="handleImageDrop(event)">
+                <div class="upload-icon">📷</div>
+                <div class="upload-text">Tap to upload or drag a photo<br><small>Skin conditions, wounds, lab reports • JPG, PNG</small></div>
+                <img id="image-preview" class="upload-preview" style="display:none">
+              </div>
+              <input id="image-file" type="file" accept="image/*" style="display:none" onchange="handleImageSelect(event)">
+              <div class="form-group" style="margin-top:12px">
+                <label class="form-label">Additional Symptoms (optional)</label>
+                <input id="image-symptoms" class="form-input" type="text" placeholder="Any additional notes about this image...">
+              </div>
+            </div>
+
+            <button class="btn-primary" onclick="runAssessment()" id="assess-btn">
+              ✨ Run AI Assessment
+            </button>
+          </div>
+
+          <!-- Right column - Vitals -->
+          <div class="assessment-right">
+            <div class="card">
+              <div class="card-title">📊 Vitals (optional)</div>
+              <div class="vitals-grid">
+                <div class="form-group">
+                  <label class="form-label">Temperature (°C)</label>
+                  <input id="v-temp" class="form-input" type="number" step="0.1" placeholder="37.0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Pulse (bpm)</label>
+                  <input id="v-pulse" class="form-input" type="number" placeholder="72">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">BP Systolic</label>
+                  <input id="v-bps" class="form-input" type="number" placeholder="120">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">BP Diastolic</label>
+                  <input id="v-bpd" class="form-input" type="number" placeholder="80">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">SpO2 (%)</label>
+                  <input id="v-spo2" class="form-input" type="number" step="0.1" placeholder="98">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Blood Glucose</label>
+                  <input id="v-glucose" class="form-input" type="number" placeholder="mg/dL">
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:16px">
+              <div class="card-title">💡 Tips</div>
+              <p style="font-size:13px; color:var(--text-muted); line-height:1.7">
+                • Be specific about symptom duration<br>
+                • Mention all associated symptoms<br>
+                • Include relevant history<br>
+                • Voice works in 22 Indian languages<br>
+                • Images help with skin/wound cases
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- RESULTS area -->
+        <div id="assess-results" style="display:none; margin-top:24px"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY PAGE -->
+    <div id="page-history" class="page">
+      <div class="page-header">
+        <h1 class="page-title">Assessment History</h1>
+        <p class="page-subtitle">All past assessments</p>
+      </div>
+      <div class="card">
+        <div id="history-list">
+          <div class="loading"><div class="spinner"></div> Loading history...</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ─── ADD PATIENT MODAL ─────────────────────────────── -->
+<div class="modal-overlay" id="modal-patient">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Add New Patient</h2>
+      <button class="modal-close" onclick="closeModal('modal-patient')">×</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Name *</label>
+        <input id="p-name" class="form-input" placeholder="Full name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Age *</label>
+        <input id="p-age" class="form-input" type="number" placeholder="Years">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Gender *</label>
+        <select id="p-gender" class="form-input">
+          <option value="female">Female</option>
+          <option value="male">Male</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input id="p-phone" class="form-input" placeholder="10-digit number">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Village</label>
+        <input id="p-village" class="form-input" placeholder="Village name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">District</label>
+        <input id="p-district" class="form-input" placeholder="District">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Weight (kg)</label>
+        <input id="p-weight" class="form-input" type="number" step="0.1" placeholder="60.0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Height (cm)</label>
+        <input id="p-height" class="form-input" type="number" step="0.1" placeholder="165">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Known Conditions (comma-separated)</label>
+      <input id="p-conditions" class="form-input" placeholder="diabetes, hypertension">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Current Medications</label>
+      <input id="p-meds" class="form-input" placeholder="Metformin 500mg, Amlodipine 5mg">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Allergies</label>
+      <input id="p-allergies" class="form-input" placeholder="Penicillin">
+    </div>
+    <button class="btn-primary" onclick="savePatient()">Save Patient</button>
+  </div>
+</div>
+
+<!-- ─── ASSESSMENT DETAIL MODAL ───────────────────────── -->
+<div class="modal-overlay" id="modal-assessment">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Assessment Details</h2>
+      <button class="modal-close" onclick="closeModal('modal-assessment')">×</button>
+    </div>
+    <div id="modal-assessment-content"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────
+const API = window.location.origin; // assumes UI served from same origin
+let token = localStorage.getItem('curebay_token');
+let currentUser = JSON.parse(localStorage.getItem('curebay_user') || 'null');
+let patients = [];
+let currentMode = 'text';
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let selectedImageFile = null;
+let activeSessionId = null;
+
+// ─── API HELPERS ─────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const r = await fetch(API + path, { headers, ...opts });
+  if (r.status === 401) { logout(); return null; }
+  return r;
+}
+
+async function parseApiResponse(r) {
+  const raw = await r.text();
+  let data = null;
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      data = { detail: raw.trim() || `Request failed (${r.status})` };
+    }
+  }
+  if (!r.ok) {
+    const message = data?.detail || data?.error || data?.message || `Request failed (${r.status})`;
+    throw new Error(message);
+  }
+  return data || {};
+}
+
+async function apiJson(path, opts = {}) {
+  const r = await api(path, opts);
+  if (!r) return null;
+  return parseApiResponse(r);
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────
+function switchAuthTab(tab) {
+  document.getElementById('login-form').style.display = tab === 'login' ? '' : 'none';
+  document.getElementById('register-form').style.display = tab === 'register' ? '' : 'none';
+  document.querySelectorAll('.auth-tab').forEach((el, i) => {
+    el.classList.toggle('active', (i === 0) === (tab === 'login'));
+  });
+}
+
+async function login() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!username || !password) return showToast('Enter username and password', 'error');
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  try {
+    const form = new URLSearchParams({ username, password });
+    const r = await fetch(API + '/auth/login', { method: 'POST', body: form });
+    const data = await parseApiResponse(r);
+    token = data.access_token;
+    localStorage.setItem('curebay_token', token);
+    // Get user profile
+    const profile = await apiJson('/auth/me');
+    currentUser = profile;
+    localStorage.setItem('curebay_user', JSON.stringify(profile));
+    enterApp();
+  } catch(e) { showToast(e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Sign In →'; }
+}
+
+async function register() {
+  const payload = {
+    name: document.getElementById('reg-name').value.trim(),
+    username: document.getElementById('reg-username').value.trim(),
+    password: document.getElementById('reg-password').value,
+    phone: document.getElementById('reg-phone').value.trim() || null,
+    role: document.getElementById('reg-role').value,
+    district: document.getElementById('reg-district').value.trim() || null,
+    state: document.getElementById('reg-state').value.trim() || null,
+  };
+  if (!payload.name || !payload.username || !payload.password) return showToast('Fill all required fields', 'error');
+  try {
+    const r = await fetch(API + '/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await parseApiResponse(r);
+    token = data.access_token;
+    localStorage.setItem('curebay_token', token);
+    const profile = await apiJson('/auth/me');
+    currentUser = profile;
+    localStorage.setItem('curebay_user', JSON.stringify(profile));
+    enterApp();
+    showToast('Account created! Welcome to CureBay', 'success');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function logout() {
+  token = null; currentUser = null;
+  localStorage.removeItem('curebay_token');
+  localStorage.removeItem('curebay_user');
+  document.getElementById('auth-screen').style.display = '';
+  document.getElementById('app-screen').style.display = 'none';
+}
+
+function enterApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  // Set user info
+  const name = currentUser?.name || 'User';
+  document.getElementById('user-name').textContent = name;
+  document.getElementById('user-role').textContent = currentUser?.role?.toUpperCase() || '';
+  document.getElementById('user-avatar').textContent = name[0]?.toUpperCase() || 'U';
+  loadDashboard();
+  loadPatients();
+}
+
+// ─── NAVIGATION ─────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach(n => { if (n.textContent.toLowerCase().includes(name === 'assess' ? 'assess' : name)) n.classList.add('active'); });
+  if (name === 'history') loadHistory();
+  if (name === 'assess') populatePatientSelect();
+}
+
+// ─── DASHBOARD ─────────────────────────────────────────────
+async function loadDashboard() {
+  // Health check
+  try {
+    const h = await apiJson('/health');
+    const bar = document.getElementById('health-status-bar');
+    const txt = document.getElementById('health-status-text');
+    if (h.status === 'healthy') {
+      bar.className = 'health-status';
+      txt.textContent = `System healthy — ${h.llm.model} ready · ${h.vector_store.disease_documents} disease KB docs`;
+    } else {
+      bar.className = 'health-status degraded';
+      txt.textContent = `System degraded — LLM: ${h.llm.available ? '✓' : '✗'} · KB: ${h.vector_store.disease_documents} docs`;
+    }
+    document.getElementById('stat-kb').textContent = h.vector_store.disease_documents;
+    document.getElementById('stat-model').textContent = h.llm.available ? '✅ Ready' : '⚠ Loading';
+  } catch(e) {
+    document.getElementById('health-status-text').textContent = 'Cannot reach backend — make sure server is running';
+  }
+
+  // Patient count
+  try {
+    const ps = await apiJson('/patients/?limit=100');
+    document.getElementById('stat-patients').textContent = ps ? ps.length : '—';
+  } catch {}
+
+  document.getElementById('dash-subtitle').textContent = `Welcome back, ${currentUser?.name} • ${new Date().toLocaleDateString('en-IN', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}`;
+
+  // Recent assessments — we load them from patient list
+  const recentEl = document.getElementById('recent-assessments');
+  recentEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Go to History to view past assessments</div></div>';
+}
+
+// ─── PATIENTS ─────────────────────────────────────────────
+async function loadPatients(search = '') {
+  const url = '/patients/' + (search ? `?search=${encodeURIComponent(search)}` : '');
+  try {
+    patients = await apiJson(url) || [];
+    renderPatients(patients);
+  } catch(e) { showToast('Failed to load patients: ' + e.message, 'error'); }
+}
+
+function searchPatients(q) {
+  clearTimeout(window._searchTimer);
+  window._searchTimer = setTimeout(() => loadPatients(q), 300);
+}
+
+function renderPatients(list) {
+  const tbody = document.getElementById('patients-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No patients yet. Add your first patient.</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(p => `
+    <tr onclick="openAssessForPatient('${p.id}')">
+      <td>
+        <span class="patient-avatar">${p.name[0].toUpperCase()}</span>
+        <strong>${p.name}</strong>
+        ${p.phone ? `<br><small style="color:var(--text-muted)">${p.phone}</small>` : ''}
+      </td>
+      <td>${p.age}y <span class="badge badge-${p.gender}">${p.gender}</span></td>
+      <td>${p.village || '—'}<br><small style="color:var(--text-muted)">${p.district || ''}</small></td>
+      <td>${(p.known_conditions || []).join(', ') || '—'}</td>
+      <td><button class="btn-secondary" style="font-size:12px;padding:6px 12px" onclick="event.stopPropagation();openAssessForPatient('${p.id}')">Assess</button></td>
+    </tr>
+  `).join('');
+}
+
+function openAssessForPatient(id) {
+  showPage('assess');
+  setTimeout(() => {
+    const sel = document.getElementById('assess-patient');
+    sel.value = id;
+  }, 100);
+}
+
+function openAddPatient() {
+  document.getElementById('modal-patient').classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+async function savePatient() {
+  const payload = {
+    name: document.getElementById('p-name').value.trim(),
+    age: parseInt(document.getElementById('p-age').value),
+    gender: document.getElementById('p-gender').value,
+    phone: document.getElementById('p-phone').value.trim() || null,
+    village: document.getElementById('p-village').value.trim() || null,
+    district: document.getElementById('p-district').value.trim() || null,
+    weight_kg: parseFloat(document.getElementById('p-weight').value) || null,
+    height_cm: parseFloat(document.getElementById('p-height').value) || null,
+    known_conditions: document.getElementById('p-conditions').value.split(',').map(s=>s.trim()).filter(Boolean),
+    current_medications: document.getElementById('p-meds').value.split(',').map(s=>s.trim()).filter(Boolean),
+    allergies: document.getElementById('p-allergies').value.trim() || null,
+  };
+  if (!payload.name || !payload.age || !payload.gender) return showToast('Name, age and gender are required', 'error');
+  try {
+    await apiJson('/patients/', { method: 'POST', body: JSON.stringify(payload) });
+    closeModal('modal-patient');
+    showToast('Patient added successfully!', 'success');
+    loadPatients();
+    populatePatientSelect();
+    // Reset form
+    ['p-name','p-age','p-phone','p-village','p-district','p-weight','p-height','p-conditions','p-meds','p-allergies'].forEach(id => document.getElementById(id).value = '');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ─── ASSESS ─────────────────────────────────────────────
+function switchMode(mode) {
+  currentMode = mode;
+  ['text','voice','image'].forEach(m => {
+    document.getElementById('mode-' + m).style.display = m === mode ? '' : 'none';
+  });
+  document.querySelectorAll('.input-tab').forEach((t, i) => {
+    t.classList.toggle('active', ['text','voice','image'][i] === mode);
+  });
+}
+
+function populatePatientSelect() {
+  const sel = document.getElementById('assess-patient');
+  sel.innerHTML = '<option value="">— Select a patient —</option>';
+  patients.forEach(p => {
+    sel.innerHTML += `<option value="${p.id}">${p.name} (${p.age}y, ${p.gender})</option>`;
+  });
+}
+
+// ─── VOICE RECORDING ─────────────────────────────────────
+function toggleRecording() {
+  if (!isRecording) startRecording();
+  else stopRecording();
+}
+
+async function startRecording() {
+  try {
+    // Try Web Speech API first
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      startWebSpeech();
+      return;
+    }
+    // Fallback to MediaRecorder
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = handleAudioStop;
+    mediaRecorder.start();
+    isRecording = true;
+    document.getElementById('record-btn').classList.add('recording');
+    document.getElementById('record-btn').textContent = '⏹️';
+    document.getElementById('voice-status').textContent = 'Recording... tap to stop';
+  } catch(e) {
+    showToast('Microphone access denied. Please allow mic access.', 'error');
+  }
+}
+
+let speechRecognition = null;
+function startWebSpeech() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  speechRecognition = new SpeechRecognition();
+  const langMap = { en:'en-IN', hi:'hi-IN', or:'or-IN', bn:'bn-IN', te:'te-IN', ta:'ta-IN', mr:'mr-IN' };
+  speechRecognition.lang = langMap[document.getElementById('assess-lang').value] || 'hi-IN';
+  speechRecognition.continuous = true;
+  speechRecognition.interimResults = true;
+  
+  let finalTranscript = '';
+  speechRecognition.onresult = (event) => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript + ' ';
+      else interim += event.results[i][0].transcript;
+    }
+    document.getElementById('voice-transcript').textContent = finalTranscript + interim;
+    document.getElementById('voice-transcript-area').style.display = '';
+  };
+  
+  speechRecognition.onerror = () => showToast('Speech recognition error. Try text input.', 'error');
+  speechRecognition.onend = () => {
+    if (isRecording) {
+      document.getElementById('mode-text').querySelector('textarea') && 
+      (document.getElementById('symptoms-input').value = finalTranscript);
+    }
+  };
+  speechRecognition.start();
+  isRecording = true;
+  document.getElementById('record-btn').classList.add('recording');
+  document.getElementById('record-btn').textContent = '⏹️';
+  document.getElementById('voice-status').textContent = '🔴 Recording... tap to stop';
+}
+
+function stopRecording() {
+  isRecording = false;
+  document.getElementById('record-btn').classList.remove('recording');
+  document.getElementById('record-btn').textContent = '🎙️';
+  document.getElementById('voice-status').textContent = 'Recording stopped. Tap again to re-record.';
+  
+  if (speechRecognition) {
+    speechRecognition.stop();
+    speechRecognition = null;
+  } else if (mediaRecorder) {
+    mediaRecorder.stop();
+  }
+}
+
+async function handleAudioStop() {
+  const blob = new Blob(audioChunks, { type: 'audio/webm' });
+  document.getElementById('voice-status').textContent = 'Transcribing...';
+  
+  const formData = new FormData();
+  formData.append('patient_id', document.getElementById('assess-patient').value || 'temp');
+  formData.append('language', document.getElementById('assess-lang').value);
+  formData.append('audio_file', blob, 'recording.webm');
+  
+  try {
+    const r = await fetch(API + '/assessment/voice', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+    const data = await parseApiResponse(r);
+    if (data.transcribed_text) {
+      document.getElementById('voice-transcript').textContent = data.transcribed_text;
+      document.getElementById('voice-transcript-area').style.display = '';
+      // Auto-fill symptoms
+      document.getElementById('symptoms-input').value = data.transcribed_text;
+      renderResults(data);
+    }
+  } catch(e) {
+    showToast('Transcription failed: ' + e.message, 'error');
+  }
+}
+
+// ─── IMAGE ─────────────────────────────────────────────
+function handleImageSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  selectedImageFile = file;
+  const preview = document.getElementById('image-preview');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = '';
+  document.getElementById('image-drop-zone').classList.add('has-file');
+}
+
+function handleImageDrop(event) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    selectedImageFile = file;
+    const preview = document.getElementById('image-preview');
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = '';
+    document.getElementById('image-drop-zone').classList.add('has-file');
+  }
+}
+
+// ─── RUN ASSESSMENT ─────────────────────────────────────
+async function runAssessment() {
+  const patientId = document.getElementById('assess-patient').value;
+  if (!patientId) return showToast('Please select a patient first', 'error');
+  
+  const btn = document.getElementById('assess-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="display:inline-block;margin-right:8px;width:16px;height:16px"></div> Running AI Assessment...';
+  
+  const resultsEl = document.getElementById('assess-results');
+  resultsEl.style.display = '';
+  resultsEl.innerHTML = `<div class="loading"><div class="spinner"></div> <div>
+    <strong>Analysing symptoms with MedGemma AI...</strong><br>
+    <span style="font-size:12px;color:var(--text-muted)">RAG retrieval + LLM inference · may take 15-30s</span>
+  </div></div>`;
+  
+  try {
+    let result;
+    
+    if (currentMode === 'image' && selectedImageFile) {
+      result = await runImageAssessment(patientId);
+    } else if (currentMode === 'voice' && document.getElementById('voice-transcript').textContent !== '...') {
+      // Use transcript text as symptoms
+      result = await runTextAssessment(patientId, document.getElementById('voice-transcript').textContent);
+    } else {
+      const symptoms = document.getElementById('symptoms-input').value.trim();
+      if (!symptoms) { showToast('Please enter symptoms', 'error'); btn.disabled = false; btn.innerHTML = '✨ Run AI Assessment'; resultsEl.style.display = 'none'; return; }
+      result = await runTextAssessment(patientId, symptoms);
+    }
+    
+    if (result) renderResults(result);
+  } catch(e) {
+    resultsEl.innerHTML = `<div class="card" style="border-color:var(--emergency);background:var(--emergency-light)">
+      <strong>Assessment Failed</strong><br>
+      <p style="margin-top:8px;font-size:14px;color:var(--text-muted)">${e.message}</p>
+      <p style="margin-top:8px;font-size:13px">Make sure the backend is running: <code>uvicorn main:app --port 8000</code></p>
+    </div>`;
+  }
+  
+  btn.disabled = false;
+  btn.innerHTML = '✨ Run AI Assessment';
+}
+
+async function runTextAssessment(patientId, symptoms) {
+  const vitals = getVitals();
+  const payload = {
+    patient_id: patientId,
+    symptoms,
+    language: document.getElementById('assess-lang').value,
+    vitals: Object.keys(vitals).length ? vitals : null
+  };
+  return apiJson('/assessment/text', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+async function runImageAssessment(patientId) {
+  const formData = new FormData();
+  formData.append('patient_id', patientId);
+  formData.append('language', document.getElementById('assess-lang').value);
+  formData.append('image_file', selectedImageFile);
+  const extra = document.getElementById('image-symptoms').value.trim();
+  if (extra) formData.append('additional_symptoms', extra);
+  
+  const r = await fetch(API + '/assessment/image', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData
+  });
+  return parseApiResponse(r);
+}
+
+function getVitals() {
+  const v = {};
+  const fields = { 'v-temp':'temperature_c', 'v-pulse':'pulse_bpm', 'v-bps':'bp_systolic', 'v-bpd':'bp_diastolic', 'v-spo2':'spo2_pct', 'v-glucose':'blood_glucose' };
+  for (const [id, key] of Object.entries(fields)) {
+    const val = document.getElementById(id).value;
+    if (val) v[key] = parseFloat(val);
+  }
+  return v;
+}
+
+// ─── RENDER RESULTS ─────────────────────────────────────
+function renderResults(data) {
+  const resultsEl = document.getElementById('assess-results');
+  
+  // Handle follow-up questions
+  if (data.needs_followup && data.followup_questions?.length) {
+    activeSessionId = data.session_id;
+    renderFollowup(data);
+    return;
+  }
+  
+  const risk = data.risk_level || 'NORMAL';
+  const riskEmoji = { EMERGENCY: '🚨', URGENT: '⚠️', NORMAL: '✅' }[risk];
+  const confidence = Math.round((data.confidence || 0) * 100);
+  
+  const conditions = (data.possible_conditions || []).map(c => `
+    <div class="condition-item">
+      <span class="condition-name">${c.name || c}</span>
+      <span class="condition-prob prob-${c.probability || 'Medium'}">${c.probability || 'Medium'}</span>
+    </div>
+  `).join('');
+  
+  const steps = (data.next_steps || []).map((s, i) => `
+    <li><span class="step-num">${i+1}</span><span>${s}</span></li>
+  `).join('');
+  
+  resultsEl.innerHTML = `
+    <div class="result-card ${risk}">
+      <span class="risk-badge ${risk}">${riskEmoji} ${risk} RISK</span>
+      <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px">${data.risk_reason || ''}</p>
+      
+      <div style="margin-bottom:16px">
+        <strong style="font-size:13px;color:var(--text-muted)">AI CONFIDENCE</strong>
+        <div class="confidence-bar" style="margin-top:6px">
+          <div class="confidence-fill" style="width:${confidence}%"></div>
+        </div>
+        <small style="color:var(--text-muted)">${confidence}%</small>
+      </div>
+      
+      ${data.image_description ? `
+        <div style="margin-bottom:16px;padding:12px;background:rgba(0,0,0,0.03);border-radius:8px;font-size:13px;color:var(--text-muted)">
+          <strong>Image Analysis:</strong> ${data.image_description}
+        </div>` : ''}
+      
+      ${data.transcribed_text ? `
+        <div style="margin-bottom:16px;padding:12px;background:rgba(0,0,0,0.03);border-radius:8px;font-size:13px;font-style:italic">
+          🎙️ Transcribed: "${data.transcribed_text}"
+        </div>` : ''}
+    </div>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+      <div class="card">
+        <div class="card-title">🩺 Possible Conditions</div>
+        <div class="conditions-list">${conditions || '<p style="color:var(--text-muted);font-size:14px">No conditions identified</p>'}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 Recommended Next Steps</div>
+        <ul class="steps-list">${steps || '<li><span class="step-num">1</span>Monitor the patient</li>'}</ul>
+      </div>
+    </div>
+    
+    ${data.patient_summary ? `
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">📝 Patient Summary (for Referral)</div>
+      <p style="font-size:14px;line-height:1.8;color:var(--text)">${data.patient_summary}</p>
+      <button class="btn-secondary" style="margin-top:12px;font-size:13px" onclick="copyText('${data.patient_summary.replace(/'/g, "\\'")}')">
+        📋 Copy Summary
+      </button>
+    </div>` : ''}
+    
+    <div style="margin-top:16px;font-size:12px;color:var(--text-muted);text-align:right">
+      Assessment ID: ${data.id || 'pending'} · Model: ${data.model_used || 'N/A'} · ${new Date().toLocaleString()}
+    </div>
+  `;
+  
+  resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderFollowup(data) {
+  const resultsEl = document.getElementById('assess-results');
+  const questions = data.followup_questions || [];
+  
+  resultsEl.innerHTML = `
+    <div class="followup-card">
+      <div class="followup-title">🤔 AI needs more information (Round ${data.round_number || 1}/${data.followup_questions ? 3 : 3})</div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Please answer the following questions to improve diagnostic accuracy:</p>
+      ${questions.map((q, i) => `
+        <div class="followup-q">
+          <label>${i+1}. ${q}</label>
+          <input class="form-input" id="fq-${i}" placeholder="Your answer..." style="margin-top:6px">
+        </div>
+      `).join('')}
+      <button class="btn-primary" onclick="submitFollowup(${JSON.stringify(questions).replace(/"/g, '&quot;')})">
+        Submit Answers →
+      </button>
+    </div>
+    <div class="result-card ${data.risk_level}">
+      <span class="risk-badge ${data.risk_level}">${{EMERGENCY:'🚨',URGENT:'⚠️',NORMAL:'✅'}[data.risk_level]} ${data.risk_level} (Preliminary)</span>
+      <p style="font-size:14px;color:var(--text-muted)">${data.risk_reason || ''}</p>
+    </div>
+  `;
+}
+
+async function submitFollowup(questions) {
+  if (!activeSessionId) return showToast('No active session', 'error');
+  const answers = {};
+  questions.forEach((q, i) => {
+    answers[q] = document.getElementById('fq-' + i).value.trim();
+  });
+  
+  const btn = document.querySelector('.followup-card button');
+  btn.disabled = true; btn.textContent = 'Processing...';
+  
+  try {
+    const result = await apiJson('/assessment/followup', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: activeSessionId, answers, language: document.getElementById('assess-lang').value })
+    });
+    renderResults(result);
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+    btn.disabled = false; btn.textContent = 'Submit Answers →';
+  }
+}
+
+// ─── HISTORY ─────────────────────────────────────────────
+async function loadHistory() {
+  const listEl = document.getElementById('history-list');
+  listEl.innerHTML = '<div class="loading"><div class="spinner"></div> Loading history...</div>';
+  
+  try {
+    // Get all patients and their assessments
+    const allPatients = await apiJson('/patients/?limit=100') || [];
+    const allItems = [];
+    
+    for (const p of allPatients.slice(0, 10)) { // Limit for perf
+      try {
+        const assessments = await apiJson(`/assessment/patient/${p.id}?limit=5`) || [];
+        assessments.forEach(a => allItems.push({ ...a, patientName: p.name }));
+      } catch {}
+    }
+    
+    allItems.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    
+    if (!allItems.length) {
+      listEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No assessments yet. Run your first assessment!</div></div>';
+      return;
+    }
+    
+    listEl.innerHTML = allItems.map(a => `
+      <div class="history-item" onclick="showAssessmentDetail('${a.id}')">
+        <div class="history-risk" style="background:${{EMERGENCY:'var(--emergency)',URGENT:'var(--urgent)',NORMAL:'var(--normal)'}[a.risk_level]}"></div>
+        <div class="history-info">
+          <div class="history-patient">${a.patientName || 'Unknown'}</div>
+          <div class="history-symptoms">${(a.symptoms_text || '').slice(0, 80)}...</div>
+        </div>
+        <div style="text-align:right">
+          <span class="risk-badge ${a.risk_level}" style="font-size:11px;padding:2px 10px">${a.risk_level}</span>
+          <div class="history-date">${new Date(a.created_at).toLocaleDateString('en-IN')}</div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    listEl.innerHTML = '<div class="empty-state"><p>Failed to load history</p></div>';
+  }
+}
+
+async function showAssessmentDetail(id) {
+  const modal = document.getElementById('modal-assessment');
+  const content = document.getElementById('modal-assessment-content');
+  content.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+  modal.classList.add('open');
+  
+  try {
+    const a = await apiJson(`/assessment/${id}`);
+    const conditions = (a.possible_conditions || []).map(c =>
+      `<div class="condition-item"><span class="condition-name">${c.name || c}</span><span class="condition-prob prob-${c.probability}">${c.probability}</span></div>`
+    ).join('');
+    const steps = (a.next_steps || []).map((s,i) =>
+      `<li><span class="step-num">${i+1}</span><span>${s}</span></li>`
+    ).join('');
+    
+    content.innerHTML = `
+      <span class="risk-badge ${a.risk_level}">${{EMERGENCY:'🚨',URGENT:'⚠️',NORMAL:'✅'}[a.risk_level]} ${a.risk_level}</span>
+      <p style="margin:12px 0;font-size:14px;color:var(--text-muted)">${a.risk_reason || ''}</p>
+      <div class="section-divider"></div>
+      <strong>Symptoms</strong>
+      <p style="font-size:14px;margin-top:8px;line-height:1.6">${a.symptoms_text || '—'}</p>
+      <div class="section-divider"></div>
+      <strong>Possible Conditions</strong>
+      <div class="conditions-list" style="margin-top:10px">${conditions}</div>
+      <div class="section-divider"></div>
+      <strong>Next Steps</strong>
+      <ul class="steps-list" style="margin-top:10px">${steps}</ul>
+      ${a.patient_summary ? `<div class="section-divider"></div><strong>Summary</strong><p style="margin-top:8px;font-size:14px;line-height:1.7">${a.patient_summary}</p>` : ''}
+      <div style="margin-top:20px;font-size:12px;color:var(--text-muted)">
+        Type: ${a.input_type} · Confidence: ${Math.round((a.confidence||0)*100)}% · ${new Date(a.created_at).toLocaleString()}
+      </div>
+    `;
+  } catch(e) {
+    content.innerHTML = `<p style="color:var(--emergency)">Failed to load: ${e.message}</p>`;
+  }
+}
+
+// ─── UTILS ─────────────────────────────────────────────
+function showToast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!', 'success'));
+}
+
+// ─── INIT ─────────────────────────────────────────────
+if (token && currentUser) {
+  enterApp();
+}
+</script>
+</body>
+</html>

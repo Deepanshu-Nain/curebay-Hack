@@ -11,8 +11,6 @@ from sqlalchemy.orm import Session
 from database.sqlite_db import get_db
 from models.db_models import Patient, VitalRecord
 from models.schemas import PatientCreate, PatientOut, PatientUpdate, VitalsInput, MessageResponse
-from routers.auth import get_current_user
-from models.db_models import User
 from services.rag_service import rag_service
 
 router = APIRouter(prefix="/patients", tags=["Patients"])
@@ -45,7 +43,6 @@ def _patient_to_dict(p: Patient) -> dict:
 def create_patient(
     payload: PatientCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """Register a new patient."""
     patient = Patient(
@@ -54,15 +51,15 @@ def create_patient(
         gender=payload.gender,
         phone=payload.phone,
         village=payload.village,
-        district=payload.district or current_user.district,
-        state=payload.state or current_user.state,
+        district=payload.district,
+        state=payload.state,
         known_conditions=json.dumps(payload.known_conditions or []),
         current_medications=json.dumps(payload.current_medications or []),
         allergies=payload.allergies,
         weight_kg=payload.weight_kg,
         height_cm=payload.height_cm,
         blood_group=payload.blood_group,
-        registered_by_id=current_user.id,
+        registered_by_id=None,
     )
     db.add(patient)
 
@@ -94,10 +91,9 @@ def list_patients(
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
-    """List patients registered by the current health worker."""
-    query = db.query(Patient).filter(Patient.registered_by_id == current_user.id)
+    """List all patients."""
+    query = db.query(Patient)
 
     if search:
         like = f"%{search}%"
@@ -115,7 +111,6 @@ def list_patients(
 def get_patient(
     patient_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """Get a patient's full profile."""
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
@@ -129,7 +124,6 @@ def update_patient(
     patient_id: str,
     payload: PatientUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """Update a patient's profile."""
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
@@ -159,7 +153,6 @@ def update_patient(
 def delete_patient(
     patient_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
@@ -180,7 +173,6 @@ def add_vitals(
     patient_id: str,
     vitals: VitalsInput,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """Record a new set of vitals for a patient."""
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
@@ -202,7 +194,6 @@ def get_vitals_history(
     patient_id: str,
     limit: int = 10,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """Get vital sign history for a patient."""
     records = (

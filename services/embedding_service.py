@@ -6,6 +6,14 @@
 # Model produces 384-dimensional normalised vectors.
 # ============================================================
 
+import os
+import threading
+
+# ── Force offline mode (no HuggingFace network calls) ─────────
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+
 from typing import List
 from loguru import logger
 
@@ -18,14 +26,24 @@ class EmbeddingService:
     def __init__(self):
         self._model = None   # lazy loaded
         self._model_name = settings.EMBEDDING_MODEL_NAME
+        self._load_lock = threading.Lock()
 
     def _load_model(self):
         """Lazy load MiniLM model on first use (saves startup memory)."""
-        if self._model is None:
+        if self._model is not None:
+            return
+
+        with self._load_lock:
+            if self._model is not None:
+                return
             try:
                 from sentence_transformers import SentenceTransformer
-                logger.info(f"Loading embedding model: {self._model_name}")
-                self._model = SentenceTransformer(self._model_name)
+                logger.info(f"Loading embedding model: {self._model_name} (offline mode)")
+                # Use local_files_only=True to prevent any network calls
+                self._model = SentenceTransformer(
+                    self._model_name,
+                    local_files_only=True,
+                )
                 logger.success(f"Embedding model loaded: {self._model_name} ({settings.EMBEDDING_DIMENSION}-dim)")
             except ImportError:
                 logger.error("sentence-transformers not installed. Run: pip install sentence-transformers")
